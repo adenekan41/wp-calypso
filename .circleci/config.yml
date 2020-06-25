@@ -18,6 +18,10 @@ references:
     working_directory: ~/wp-calypso
     docker:
       - image: circleci/node:12.18.0-browsers
+    environment:
+      CONFIG_ENV: release
+      MINIFY_JS: true
+      DETECT_CHROMEDRIVER_VERSION: 'false'
 
   setup-results-and-artifacts: &setup-results-and-artifacts
     name: Create Directories for Results and Artifacts
@@ -627,16 +631,16 @@ jobs:
   desktop-build-source:
     <<: *desktop_defaults
     steps:
-      - attach_workspace:
-          at: '~'
+      - checkout
       - run: *update-node
+      - run: *yarn-install
       - restore_cache: *desktop-restore-source-cache
       - run: *desktop-decrypt-assets
       - run:
           name: Build Desktop Source
           command: |
             make -f desktop/Makefile source
-      - restore_cache: *desktop-save-source-cache
+      - save_cache: *desktop-save-source-cache
       - persist_to_workspace:
           root: /home/circleci/wp-calypso
           paths: *desktop-cache-paths
@@ -646,17 +650,14 @@ jobs:
       xcode: "10.1.0"
     shell: /bin/bash --login
     working_directory: /Users/distiller/wp-calypso
+    environment:
+      DETECT_CHROMEDRIVER_VERSION: 'false'
     steps:
+      - checkout
       - attach_workspace:
           at: /Users/distiller/wp-calypso
       - run: *update-node
       - run: *yarn-install
-      - run:
-          name: Verify Node Version
-          command: |
-            source "$HOME/.nvm/nvm.sh"
-            nvm list
-            yarn --version
       - run:
           name: Build Desktop Mac
           no_output_timeout: 30m
@@ -700,7 +701,7 @@ workflows:
   version: 2
   calypso:
     jobs:
-      - setup
+      # - setup
 #       - prime-calypso-live:
 #           filters:
 #             branches:
@@ -766,9 +767,7 @@ workflows:
 #           test-flags: '-W -S $CIRCLE_SHA1'
 #           test-target: 'WOO'
 #           slack-webhook: '$SLACK_WOO'
-      - desktop-build-source:
-          requires:
-            - setup
+      - desktop-build-source
       - desktop-build-mac:
           requires:
             - desktop-build-source
